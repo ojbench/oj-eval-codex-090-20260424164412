@@ -95,6 +95,14 @@ class ACMOJClient:
 
         return result
 
+    def submit_src(self, problem_id: int, src_text: str, language: str = "cpp") -> Optional[Dict]:
+        """Submit the content of src.hpp directly. Default language set to 'cpp'."""
+        data = {"language": language, "code": src_text}
+        result = self._make_request("POST", f"/problem/{problem_id}/submit", data=data)
+        if result and 'id' in result:
+            self._save_submission_id(result['id'])
+        return result
+
     def get_submission_detail(self, submission_id: int) -> Optional[Dict]:
         return self._make_request("GET", f"/submission/{submission_id}")
 
@@ -114,6 +122,12 @@ def main():
     submit_parser.add_argument("--problem-id", type=int, required=True, help="Problem ID")
     submit_parser.add_argument("--git-url", type=str, required=True, help="Git repository URL")
 
+    # Submit src.hpp content directly
+    submit_src_parser = subparsers.add_parser("submit-src", help="Submit src.hpp content directly")
+    submit_src_parser.add_argument("--problem-id", type=int, required=True, help="Problem ID")
+    submit_src_parser.add_argument("--file", type=str, default="src.hpp", help="Path to src.hpp file")
+    submit_src_parser.add_argument("--language", type=str, default="cpp", help="Language tag (default: cpp)")
+
     # Sub-command for checking submission status
     status_parser = subparsers.add_parser("status", help="Check submission status")
     status_parser.add_argument("--submission-id", type=int, required=True, help="Submission ID")
@@ -132,6 +146,14 @@ def main():
 
     if args.command == "submit":
         result = client.submit_git(args.problem_id, args.git_url)
+    elif args.command == "submit-src":
+        try:
+            with open(args.file, 'r') as f:
+                src_text = f.read()
+        except Exception as e:
+            print(f"Error: cannot read file {args.file}: {e}")
+            return
+        result = client.submit_src(args.problem_id, src_text, args.language)
     elif args.command == "status":
         result = client.get_submission_detail(args.submission_id)
     elif args.command == "abort":
